@@ -1,0 +1,218 @@
+' ms
+
+Sub Main () 
+'
+'	Description: 10 mil thick Alumina Microstrip
+'
+'	Macro Version: 1.0.0
+'	CST Version: 2021.04
+'	Change Description: Initial Release
+'
+BeginHide
+' Frequency Parameters
+	StoreDoubleParameter "fmin", 1
+	StoreDoubleParameter "fmax", 45
+' Substrate Parameters
+	StoreDoubleParameter "MS_w", 9.5		'microstrip width
+	StoreDoubleParameter "MS_h", 10			'dielectric thickness
+	StoreDoubleParameter "MS_Hc", 50		'cover height over microstrip
+	StoreDoubleParameter "MS_t", 0.1		'metal thickness
+	StoreDoubleParameter "MS_er", 9.8		'relative dielectric constant
+' Housing Parameters
+	StoreDoubleParameter "housing_w", 80	'width of housing
+	StoreDoubleParameter "housing_l", 200	'length of housing
+EndHide
+
+' set units
+Units.Geometry "mil"
+Units.Time "ps"
+Units.Frequency "GHz"
+
+' solver
+Solver.FrequencyRange "fmin", "fmax"
+
+Dim lNum As Long
+Dim i As Long
+Dim sName As String
+
+' delete existing or default materials
+lNum = Material.GetNumberOfMaterials
+
+' loop through and delete existing materials
+If lNum <> 0 Then
+For i = 0 To lNum-1
+  sName = Material.GetNameOfMaterialFromIndex(i)
+  If (sName<>"air_0" And sName<>"") Then
+  	Material.Delete sName
+  	i=i-1
+  	lNum=lNum-1
+  End If
+Next
+End If
+
+' delete ports
+i = Port.StartPortNumberIteration
+Do
+	sName = Port.GetNextPortNumber
+	If sName <> "-1" Then
+		Port.Delete sName
+	Else   'sName = "-1"
+	End If
+Loop Until sName = "-1"
+
+' create materials
+With Material
+	.Reset
+	.name "Air"
+	.epsilon "1.00065"
+	.type "Normal"
+	.colour 0/255, 255/255, 0/255	   	'green
+	.transparency "90"
+	.create
+End With
+
+With Material
+	.Reset
+	.name "PEC"
+	.type "PEC"
+	.colour 255/255, 215/255, 0/255	   	'gold
+	.transparency "90"
+	.create
+End With
+
+With Material
+     .Reset
+     .Name "Alumina"
+     .Folder ""
+     .FrqType "all"
+     .Type "Normal"
+     .SetMaterialUnit "MHz", "mm"
+     .Epsilon "MS_er"
+     .Mu "1.0"
+     .Kappa "0.0"
+     .TanD "0.0"
+     .TanDFreq "0.0"
+     .TanDGiven "False"
+     .TanDModel "ConstTanD"
+     .KappaM "0.0"
+     .TanDM "0.0"
+     .TanDMFreq "0.0"
+     .TanDMGiven "False"
+     .TanDMModel "ConstKappa"
+     .DispModelEps "None"
+     .DispModelMu "None"
+     .DispersiveFittingSchemeEps "General 1st"
+     .DispersiveFittingSchemeMu "General 1st"
+     .UseGeneralDispersionEps "False"
+     .UseGeneralDispersionMu "False"
+     .Rho "3900.0"
+     .ThermalType "Normal"
+     .ThermalConductivity "30"
+     .HeatCapacity "0.88"
+     .MechanicsType "Isotropic"
+     .YoungsModulus "370"
+     .PoissonsRatio "0.22"
+     .ThermalExpansionRate "7.9"
+     .Colour 255/255, 255/255, 255/255	'White
+     .Wireframe "False"
+     .Transparency "0"
+     .Create
+End With
+
+' create structure elements
+With Brick
+     .Reset
+     .Name "AL2O3_substrate"
+     .Component "Substrate"
+     .Material "Alumina"
+     .Xrange "-housing_w/2", "housing_w/2"
+     .Yrange "0", "MS_h"
+     .Zrange "0", "housing_l"
+     .Create
+End With
+
+With Brick
+     .Reset
+     .Name "AL2O3_met1"
+     .Component "PEC"
+     .Material "PEC"
+     .Xrange "-MS_w/2", "MS_w/2"
+     .Yrange "MS_h", "MS_h+MS_t"
+     .Zrange "0", "housing_l"
+     .Create
+End With
+
+With Brick
+     .Reset
+     .Name "air"
+     .Component "Air"
+     .Material "Air"
+     .Xrange "-housing_w/2", "housing_w/2"
+     .Yrange "MS_h", MS_h+MS_Hc
+     .Zrange "0", "housing_l"
+     .Create
+End With
+
+Solid.Insert "Air:air", "PEC:AL2O3_met1"
+
+With Port
+     .Reset
+     .PortNumber "1"
+     .NumberOfModes "1"
+     .AdjustPolarization False
+     .PolarizationAngle "0.0"
+     .ReferencePlaneDistance "0"
+     .TextSize "50"
+     .Coordinates "Free"
+     .Orientation "zmin"
+     .PortOnBound "True"
+     .ClipPickedPortToBound "False"
+     .Xrange -3*MS_w, 3*MS_w
+     .Yrange "0", 5*MS_h
+     .Zrange "0", "0"
+     .XrangeAdd "0.0", "0.0"
+     .YrangeAdd "0.0", "0.0"
+     .ZrangeAdd "0.0", "0.0"
+     .SingleEnded "False"
+     .Create
+End With
+
+With Port
+     .Reset
+     .PortNumber "2"
+     .NumberOfModes "1"
+     .AdjustPolarization False
+     .PolarizationAngle "0.0"
+     .ReferencePlaneDistance "0"
+     .TextSize "50"
+     .Coordinates "Free"
+     .Orientation "zmax"
+     .PortOnBound "True"
+     .ClipPickedPortToBound "False"
+     .Xrange -3*MS_w, 3*MS_w
+     .Yrange "0", 5*MS_h
+     .Zrange "0", housing_l
+     .XrangeAdd "0.0", "0.0"
+     .YrangeAdd "0.0", "0.0"
+     .ZrangeAdd "0.0", "0.0"
+     .SingleEnded "False"
+     .Create
+End With
+
+With Boundary
+     .Xmin "electric"
+     .Xmax "electric"
+     .Ymin "electric"
+     .Ymax "open"
+     .Zmin "electric"
+     .Zmax "electric"
+     .Xsymmetry "magnetic"
+     .Ysymmetry "none"
+     .Zsymmetry "none"
+End With
+
+Plot.DrawWorkplane "false"
+
+ChangeSolverType "HF Frequency Domain"
+
+End Sub
